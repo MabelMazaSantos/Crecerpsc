@@ -1,0 +1,14 @@
+.btn-purpura {
+    background-color: #a03adf; 
+    border-color: #a03adf;
+}
+
+.btn-purpura:hover {
+    background-color: #ce1cff; 
+    border-color: #ce1cff; 
+}
+
+.card-rose {
+    background: #e83890;
+    color: azure;
+}
