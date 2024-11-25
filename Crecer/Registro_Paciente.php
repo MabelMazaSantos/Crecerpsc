@@ -13,7 +13,7 @@ if (!isset($_SESSION['user_id'])) {
 
 $errors = [];
 
-$sql = "SELECT Grupo_Familiar FROM terapia_familiar";
+$sql = "SELECT * FROM terapia_familiar";
 $stmt = $con->prepare($sql);
 $stmt->execute();
 $grupos_familiares = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -36,13 +36,17 @@ if (!empty($_POST)) {
     }
 
     if (count($errors) == 0) {
-        $id = Registrar_Paciente([$nombre, $edad, $sexo, $grupo_familiar, $trastorno, $observacion], $con);
-
+        $id = Registrar_Paciente([$nombre, $edad, $sexo, $trastorno, $observacion], $con);
         if ($id > 0) {
             if (!isset($_POST['toggleGrupoFamiliar']) || $_POST['toggleGrupoFamiliar'] != 'on') {
                 $sql = "INSERT INTO terapia_familiar (Grupo_Familiar) VALUES (?)";
                 $stmt = $con->prepare($sql);
                 $stmt->execute([$grupo_familiar]);
+                $grupo_familiar = $con->lastInsertId();
+            }
+            $result = Registrar_Paciente_Familia([$grupo_familiar, $id], $con);
+            if (!$result) {
+                $errors[] = "Error al registrar la familia del paciente";
             }
             header("Location: Paciente.php");
             exit;
@@ -71,35 +75,43 @@ include 'Header.php';
                 <h3 class="text-purple">Datos del Paciente</h3>
                 <br>
                 <?php Mostrar_Error($errors); ?>
-                <form class="row g-3" action="Registro_Paciente.php" method="post" autocomplete="off">
+                <form class="row g-3" action="Registro_Paciente.php" method="post" autocomplete="off" onsubmit="return validarForm()">
                     <div class="col-md-6">
                         <label for="Nombre"><span class="text-danger">*</span>Nombre</label>
-                        <input type="text" name="Nombre" id="Nombre" class="form-control">
+                        <input type="text" name="Nombre" id="Nombre" class="form-control" required>
                     </div>
 
                     <div class="col-md-6">
                         <label for="Edad"><span class="text-danger">*</span>Edad</label>
-                        <input type="number" name="Edad" id="Edad" class="form-control">
+                        <input type="number" name="Edad" id="Edad" class="form-control" required>
                     </div>
 
                     <div class="col-md-6">
                         <label for="Sexo"><span class="text-danger">*</span>Sexo</label>
-                        <select name="Sexo" id="Sexo" class="form-control">
+                        <select name="Sexo" id="Sexo" class="form-control" required>
                             <option value="">Seleccione</option>
                             <option value="Masculino">Masculino</option>
                             <option value="Femenino">Femenino</option>
                             <option value="Otro">Otro</option>
                         </select>
                     </div>
-
                     <div class="col-md-6">
                         <label for="Trastorno"><span class="text-danger">*</span>Trastorno</label>
-                        <input type="text" name="Trastorno" id="Trastorno" class="form-control">
+                        <select name="Trastorno" id="Trastorno" class="form-control" required>
+                            <option value="">Seleccione</option>
+                            <option value="0">Ansiedad</option>
+                            <option value="1">Depresion</option>
+                            <option value="2">Transtorno limite de la personalidad</option>
+                            <option value="3">Transtorno de conducta alimentaria</option>
+                            <option value="4">Limitaciones</option>
+                            <option value="5">Deficit de atención e hiperactividad</option>
+                            <option value="6">Agresividad</option>
+                        </select>
                     </div>
 
                     <div class="col-md-12">
                         <label for="Observacion"><span class="text-danger">*</span>Observación</label>
-                        <textarea name="Observacion" id="Observacion" class="form-control" rows="4"></textarea>
+                        <textarea name="Observacion" id="Observacion" class="form-control" rows="4" required></textarea>
                     </div>
 
                     <div class="col-md-12">
@@ -120,11 +132,10 @@ include 'Header.php';
                     </div>
 
                     <div class="col-md-6" id="grupoFamiliarSelectInput" style="display:none;">
-                        <select name="GrupoFamiliarSelect" id="GrupoFamiliarSelect" class="form-control">
-                            <option>Selecciona</option>
-                            <option value="Sin grupo familiar">Sin grupo familiar</option>
+                        <select name="GrupoFamiliarSelect" id="GrupoFamiliarSelect" class="form-control" required>
+                            <option value="" disabled selected> Sin grupo familiar</option>
                             <?php foreach ($grupos_familiares as $grupo) { ?>
-                                <option value="<?php echo htmlspecialchars($grupo['Grupo_Familiar']); ?>">
+                                <option value="<?php echo htmlspecialchars($grupo['Id']); ?>">
                                     <?php echo htmlspecialchars($grupo['Grupo_Familiar']); ?>
                                 </option>
                             <?php } ?>
@@ -141,4 +152,54 @@ include 'Header.php';
     </div>
 </main>
 
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        document.querySelector("#Nombre").addEventListener("input", function(evt) {
+            evt.target.value = evt.target.value.replace(/[^a-zA-Z\s]/g, "");
+        });
+    });
+
+    function toggleGrupoFamiliarInput() {
+        const grupoFamiliarTextInput = document.getElementById('grupoFamiliarTextInput');
+        const grupoFamiliarSelectInput = document.getElementById('grupoFamiliarSelectInput');
+        console.log('hola');
+        if (grupoFamiliarTextInput.style.display === 'block') {
+            grupoFamiliarTextInput.style.display = 'none';
+            grupoFamiliarSelectInput.style.display = 'block';
+        } else {
+            grupoFamiliarTextInput.style.display = 'block';
+            grupoFamiliarSelectInput.style.display = 'none';
+        }
+    }
+
+    function validarForm() {
+        const nombre = document.getElementById('Nombre').value;
+        const edad = parseInt(document.getElementById('Edad').value, 10);
+        const sexo = document.getElementById('Sexo').value;
+        const trastorno = document.getElementById('Trastorno').value;
+        const observacion = document.getElementById('Observacion').value;
+        console.log(!document.getElementById('toggleGrupoFamiliar').checked);
+        const grupoFamiliar = document.getElementById('toggleGrupoFamiliar').checked ?
+            document.getElementById('GrupoFamiliarSelect').value :
+            document.getElementById('GrupoFamiliarText').value;
+
+        if (nombre.trim() === '' || isNaN(edad) || sexo.trim() === '' ||
+            trastorno.trim() === '' || observacion.trim() === '' || grupoFamiliar.trim() === '') {
+            alert('Debe completar todos los campos correctamente.');
+            return false;
+        }
+
+        if (edad < 0 || edad > 120) {
+            alert('La edad debe ser un número válido.');
+            return false;
+        }
+
+        if (!/^[a-zA-Z\s]*$/g.test(nombre)) {
+            alert('El nombre no puede contener números.');
+            return false;
+        }
+
+        return true;
+    }
+</script>
 <?php include 'Footer.php'; ?>

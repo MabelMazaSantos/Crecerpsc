@@ -10,7 +10,7 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-$sqlCount1 = $con->prepare("SELECT COUNT(*) as total FROM paciente");
+$sqlCount1 = $con->prepare("SELECT COUNT(*) as total FROM paciente WHERE Estado = 0");
 $sqlCount1->execute();
 $countResult1 = $sqlCount1->fetch(PDO::FETCH_ASSOC);
 $totalPacientes = $countResult1['total'];
@@ -20,7 +20,10 @@ $sqlCount3->execute();
 $countResult3 = $sqlCount3->fetch(PDO::FETCH_ASSOC);
 $totalTerapia = $countResult3['total'];
 
-$sql1 = $con->prepare("SELECT * FROM paciente ORDER BY Id DESC LIMIT 5");
+$sql1 = $con->prepare("SELECT p.Id, p.Nombre, p.Edad, p.Sexo, IFNULL(f.Grupo_Familiar, 'Sin grupo familiar') as Grupo_Familiar, p.Trastorno, p.Observacion, p.Estado, p.Fecha_Registro FROM paciente p 
+    LEFT JOIN familia_paciente fp on p.Id = fp.idPaciente
+    LEFT JOIN terapia_familiar f on fp.idFamilia = f.Id
+    WHERE p.Estado = 0 ORDER BY p.Id DESC LIMIT 5");
 $sql1->execute();
 $pacientes = $sql1->fetchAll(PDO::FETCH_ASSOC);
 
@@ -28,14 +31,14 @@ $graficoEtiquetas = [];
 $graficoDatos = [];
 $mensaje = "";
 
-$estadistica = $_POST['estadistica'] ?? '';
+$estadistica = $_POST['estadistica'] ?? 'anio';
 
 switch ($estadistica) {
     case 'anio':
-        $sqlAnio = $con->prepare("SELECT YEAR(creado_en) as anio, COUNT(*) as total 
+        $sqlAnio = $con->prepare("SELECT YEAR(Fecha_Registro) as anio, COUNT(*) as total 
                                   FROM paciente 
                                   GROUP BY anio 
-                                  ORDER BY total DESC");
+                                  ORDER BY anio ASC");
         $sqlAnio->execute();
         $resultadosAnio = $sqlAnio->fetchAll(PDO::FETCH_ASSOC);
 
@@ -47,18 +50,29 @@ switch ($estadistica) {
         break;
 
     case 'edad':
-        $sqlEdad = $con->prepare("SELECT Edad, COUNT(*) as total 
-                                  FROM paciente 
-                                  GROUP BY Edad 
-                                  ORDER BY total DESC");
+        $sqlEdad = $con->prepare("SELECT CASE 
+                WHEN Edad BETWEEN 12 and 18 THEN 'Adolescencia (12 a 18 años)'
+                WHEN Edad BETWEEN 14 and 26 THEN 'Juventud (14 a 26 año)'
+                WHEN Edad BETWEEN 27 and 59 THEN 'Adultez (27 a 59 años)'
+                WHEN Edad >= 60 THEN 'Persona mayor (60 o más)'
+            END as grupo, COUNT(*) as total 
+            FROM paciente 
+            GROUP BY grupo 
+            ORDER BY total DESC");
+        /**
+         * Adolescencia: de 12 a 18 años 
+         * Juventud: de 14 a 26 años 
+         * Adultez: de 27 a 59 años 
+         * Persona mayor: de 60 años o más
+         */
         $sqlEdad->execute();
         $resultadosEdad = $sqlEdad->fetchAll(PDO::FETCH_ASSOC);
 
         foreach ($resultadosEdad as $resultado) {
-            $graficoEtiquetas[] = $resultado['Edad'];
+            $graficoEtiquetas[] = $resultado['grupo'];
             $graficoDatos[] = $resultado['total'];
         }
-        $mensaje = "Distribución de pacientes por edad.";
+        $mensaje = "Distribución de pacientes por rango de edad.";
         break;
 
     case 'trastorno':
@@ -150,7 +164,7 @@ include 'Header.php';
                     </a>
                 </div>
 
-                <div class="col-xl-6 col-md-6 mb-6 mt-4">
+                <div class="col-xl-4 col-md-6 mb-6 mt-4">
                     <div class="card mb-4 shadow">
                         <div class="card-header card-rose">
                             <i class="fas fa-chart-area me-1"></i>
@@ -161,18 +175,19 @@ include 'Header.php';
                                 <div class="mb-3">
                                     <label for="estadistica" class="form-label">Selecciona una estadística:</label>
                                     <select name="estadistica" id="estadistica" class="form-control">
-                                        <option value="anio">Año con más pacientes</option>
-                                        <option value="edad">Distribución de edades</option>
-                                        <option value="trastorno">Trastorno más diagnosticado</option>
+                                        <option value="anio" <?php if ($estadistica == 'anio') echo ('selected') ?> selected>Año con más pacientes</option>
+                                        <option value="edad" <?php if ($estadistica == 'edad') echo ('selected') ?>>Distribución de edades</option>
+                                        <option value="trastorno" <?php if ($estadistica == 'trastorno') echo ('selected') ?>>Trastorno más diagnosticado</option>
                                     </select>
                                 </div>
                                 <button type="submit" class="btn btn-purpura text-white">Ver Estadísticas</button>
+                                <button type="button" class="btn btn-secondary text-white" onclick="generatePDF()">Generar PDF</button>
                             </form>
                         </div>
                     </div>
                 </div>
 
-                <div class="col-xl-6 col-md-6 mb-6 mt-4">
+                <div class="col-xl-8 col-md-6 mb-6 mt-4">
                     <div class="card mb-4 shadow">
                         <div class="card-header card-rose">
                             <i class="fas fa-chart-area me-1"></i>
@@ -199,11 +214,39 @@ include 'Header.php';
                                         options: {
                                             scales: {
                                                 y: {
-                                                    beginAtZero: true
+                                                    beginAtZero: true,
+                                                    ticks: {
+                                                        callback: function(value) {
+                                                            return Number.isInteger(value) ? value : null;
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
                                     });
+
+                                    function generatePDF() {
+                                        const canvas = document.getElementById('myChart');
+                                        const imgData = canvas.toDataURL('image/png');
+                                        const {
+                                            jsPDF
+                                        } = window.jspdf;
+                                        const pdf = new jsPDF();
+                                        const stadisticSelected = document.getElementById('estadistica').value;
+                                        pdf.text(`Estadistica de: ${stadisticSelected}`, 10, 10);
+                                        pdf.addImage(imgData, 'PNG', 10, 40, 190, 100);
+
+                                        // Add table data
+                                        let startY = 150;
+                                        pdf.text('Tabla de Datos:', 10, startY);
+                                        startY += 10;
+                                        <?php foreach ($graficoEtiquetas as $index => $etiqueta): ?>
+                                            pdf.text('<?php echo $etiqueta; ?>: <?php echo $graficoDatos[$index]; ?>', 10, startY);
+                                            startY += 10;
+                                        <?php endforeach; ?>
+
+                                        pdf.save('chart.pdf');
+                                    }
                                 </script>
                             <?php endif; ?>
                         </div>
@@ -238,5 +281,5 @@ include 'Header.php';
             </div>
         </div>
     </main>
-
+    <script src="https://unpkg.com/jspdf@latest/dist/jspdf.umd.min.js"></script>
     <?php include 'Footer.php'; ?>
