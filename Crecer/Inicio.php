@@ -84,7 +84,31 @@ switch ($estadistica) {
         $resultadosTrastorno = $sqlTrastorno->fetchAll(PDO::FETCH_ASSOC);
 
         foreach ($resultadosTrastorno as $resultado) {
-            $graficoEtiquetas[] = $resultado['Trastorno'];
+            switch ($resultado['Trastorno']) {
+                case '0':
+                    $graficoEtiquetas[] = 'Ansiedad';
+                    break;
+                case '1':
+                    $graficoEtiquetas[] = 'Depresión';
+                    break;
+                case '2':
+                    $graficoEtiquetas[] = 'Trastorno límite de la personalidad';
+                    break;
+                case '3':
+                    $graficoEtiquetas[] = 'Trastorno de conducta alimentaria';
+                    break;
+                case '4':
+                    $graficoEtiquetas[] = 'Limitaciones';
+                    break;
+                case '5':
+                    $graficoEtiquetas[] = 'Déficit de atención e hiperactividad';
+                    break;
+                case '6':
+                    $graficoEtiquetas[] = 'Agresividad';
+                    break;
+                default:
+                    $graficoEtiquetas[] = 'Desconocido';
+            }
             $graficoDatos[] = $resultado['total'];
         }
         $mensaje = "Distribución de pacientes por trastorno.";
@@ -245,7 +269,7 @@ include 'Header.php';
                                             startY += 10;
                                         <?php endforeach; ?>
 
-                                        pdf.save('chart.pdf');
+                                        pdf.save('Estadistica_<?php echo $stadisticSelected ?>.pdf');
                                     }
                                 </script>
                             <?php endif; ?>
@@ -265,7 +289,35 @@ include 'Header.php';
                                     <?php foreach ($pacientes as $paciente): ?>
                                         <tr>
                                             <td><?php echo htmlspecialchars($paciente['Nombre']); ?></td>
-                                            <td><?php echo htmlspecialchars($paciente['Trastorno']); ?></td>
+                                            <td>
+                                                <?php 
+                                                    switch ($paciente['Trastorno']) {
+                                                        case '0':
+                                                            echo 'Ansiedad';
+                                                            break;
+                                                        case '1':
+                                                            echo 'Depresión';
+                                                            break;
+                                                        case '2':
+                                                            echo 'Trastorno límite de la personalidad';
+                                                            break;
+                                                        case '3':
+                                                            echo 'Trastorno de conducta alimentaria';
+                                                            break;
+                                                        case '4':
+                                                            echo 'Limitaciones';
+                                                            break;
+                                                        case '5':
+                                                            echo 'Déficit de atención e hiperactividad';
+                                                            break;
+                                                        case '6':
+                                                            echo 'Agresividad';
+                                                            break;
+                                                        default:
+                                                            echo 'Desconocido';
+                                                    }
+                                                ?>
+                                            </td>
                                             <td><?php echo htmlspecialchars($paciente['Grupo_Familiar']); ?></td>
                                             <td>
                                                 <img src="Img/icons/familia.png" class="small-icon">
