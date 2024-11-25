@@ -22,7 +22,11 @@ if ($id == '' || $token == '') {
         $sql = $con->prepare("SELECT count(Id) FROM paciente WHERE Id = ?");
         $sql->execute([$id]);
         if ($sql->fetchColumn() > 0) {
-            $sql = $con->prepare("SELECT * FROM paciente WHERE Id = ?");
+            $sql = $con->prepare("SELECT p.Id, p.Nombre, p.Edad, p.Sexo, f.Grupo_Familiar, p.Trastorno, p.Observacion 
+            FROM paciente p
+            LEFT JOIN familia_paciente fp ON p.Id = fp.idPaciente
+            LEFT JOIN terapia_familiar f ON fp.idFamilia = f.Id
+            WHERE p.Id = ?");
             $sql->execute([$id]);
             $paciente = $sql->fetch(PDO::FETCH_ASSOC);
         }
@@ -34,7 +38,7 @@ if ($id == '' || $token == '') {
 
 $errors = [];
 
-$sql = $con->prepare("SELECT Grupo_Familiar FROM terapia_familiar");
+$sql = $con->prepare("SELECT * FROM terapia_familiar");
 $sql->execute();
 $grupos_familiares = $sql->fetchAll(PDO::FETCH_ASSOC);
 
@@ -61,8 +65,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     if (count($errors) == 0) {
 
-        $sql = $con->prepare("UPDATE paciente SET Nombre = ?, Edad = ?, Sexo = ?, Trastorno = ?, Observacion = ?, Grupo_Familiar = ? WHERE Id = ?");
-        $result = $sql->execute([$nombre, $edad, $sexo, $trastorno, $observacion, $grupo_familiar, $id]);
+        $sql = $con->prepare("UPDATE paciente SET Nombre = ?, Edad = ?, Sexo = ?, Trastorno = ?, Observacion = ? WHERE Id = ?");
+        $result = $sql->execute([$nombre, $edad, $sexo, $trastorno, $observacion, $id]);
 
         if ($result) {
 
@@ -71,6 +75,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $stmt = $con->prepare($sql);
                 $stmt->execute([$grupo_familiar]);
             }
+            $sql = $con->prepare("DELETE FROM familia_paciente WHERE idPaciente = ?");
+            $result = $sql->execute([$id]);
+            if ($result) {
+                $result = Registrar_Paciente_Familia([$grupo_familiar, $id], $con);
+                if (!$result) {
+                    $errors[] = "Error al registrar la familia del paciente";
+                }
+            } else {
+                $errors[] = "Error al registrar la familia del paciente";
+            }
+            
             header("Location: Paciente.php");
             exit;
         } else {
@@ -124,8 +139,16 @@ include 'Header.php';
 
                     <div class="col-md-6">
                         <label for="Trastorno"><span class="text-danger">*</span>Trastorno</label>
-                        <input type="text" name="Trastorno" id="Trastorno" class="form-control"
-                            value="<?php echo $paciente['Trastorno']; ?>">
+                        <select name="Trastorno" id="Trastorno" class="form-control" required>
+                            <option value="">Seleccione</option>
+                            <option value="0" <?php echo $paciente['Trastorno'] == '0' ? 'selected' : ''; ?>>Ansiedad</option>
+                            <option value="1" <?php echo $paciente['Trastorno'] == '1' ? 'selected' : ''; ?>>Depresion</option>
+                            <option value="2" <?php echo $paciente['Trastorno'] == '2' ? 'selected' : ''; ?>>Transtorno limite de la personalidad</option>
+                            <option value="3" <?php echo $paciente['Trastorno'] == '3' ? 'selected' : ''; ?>>Transtorno de conducta alimentaria</option>
+                            <option value="4" <?php echo $paciente['Trastorno'] == '4' ? 'selected' : ''; ?>>Limitaciones</option>
+                            <option value="5" <?php echo $paciente['Trastorno'] == '5' ? 'selected' : ''; ?>>Deficit de atención e hiperactividad</option>
+                            <option value="6" <?php echo $paciente['Trastorno'] == '6' ? 'selected' : ''; ?>>Agresividad</option>
+                        </select>
                     </div>
 
                     <div class="col-md-12">
@@ -139,24 +162,23 @@ include 'Header.php';
                     </div>
 
                     <div class="col-md-12 d-flex align-items-center">
-                        <span class="me-3" style="font-weight: 500;">Editar</span>
+                        <span class="me-3" style="font-weight: 500;">Crear</span>
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" id="toggleGrupoFamiliar"
-                                name="toggleGrupoFamiliar" onchange="toggleGrupoFamiliarInput()">
+                                name="toggleGrupoFamiliar" onchange="toggleGrupoFamiliarInput()" 
+                                <?php if ($paciente['Grupo_Familiar'] != NULL) { ?>checked<?php } ?>>
                         </div>
                         <span class="ms-3" style="font-weight: 500;">Seleccionar</span>
                     </div>
-
-                    <div class="col-md-6" id="grupoFamiliarTextInput" style="display:block;">
-                        <input type="text" name="GrupoFamiliarText" id="GrupoFamiliarText" class="form-control"
-                            value="<?php echo htmlspecialchars($paciente['Grupo_Familiar']); ?>">
+                    <div class="col-md-6" id="grupoFamiliarTextInput" <?php if ($paciente['Grupo_Familiar'] == NULL) { ?>style="display:block;"<?php } else { ?> style="display:none;"<?php } ?>>
+                        <input type="text" name="GrupoFamiliarText" id="GrupoFamiliarText" class="form-control">
                     </div>
 
-                    <div class="col-md-6" id="grupoFamiliarSelectInput" style="display:none;">
+                    <div class="col-md-6" id="grupoFamiliarSelectInput" <?php if ($paciente['Grupo_Familiar'] != NULL) { ?>style="display:block;"<?php } else { ?> style="display:none;"<?php } ?>>
                         <select name="GrupoFamiliarSelect" id="GrupoFamiliarSelect" class="form-control">
-                            <option value="Sin grupo familiar">Sin grupo familiar</option>
+                            <option value="" disabled selected>Sin grupo familiar</option>
                             <?php foreach ($grupos_familiares as $grupo) { ?>
-                                <option value="<?php echo htmlspecialchars($grupo['Grupo_Familiar']); ?>" <?php echo $paciente['Grupo_Familiar'] == $grupo['Grupo_Familiar'] ? 'selected' : ''; ?>>
+                                <option value="<?php echo htmlspecialchars($grupo['Id']); ?>" <?php echo $paciente['Grupo_Familiar'] == $grupo['Grupo_Familiar'] ? 'selected' : ''; ?>>
                                     <?php echo htmlspecialchars($grupo['Grupo_Familiar']); ?>
                                 </option>
                             <?php } ?>

@@ -17,11 +17,19 @@ function Generar_Token()
 
 function Registrar_Paciente(array $datos, $con)
 {
-    $sql = $con->prepare("INSERT INTO  paciente (Nombre, Edad, Sexo, Grupo_Familiar, Trastorno, Observacion, Fecha_Registro) VALUES (?,?,?,?,?,?, now())");
+    $sql = $con->prepare("INSERT INTO  paciente (Nombre, Edad, Sexo,  Trastorno, Observacion, Fecha_Registro) VALUES (?,?,?,?,?, now())");
     if ($sql->execute($datos)) {
         return $con->lastInsertId();
     }
     return 0;
+}
+function Registrar_Paciente_Familia(array $datos, $con)
+{
+    $sql = $con->prepare("INSERT INTO  familia_paciente (idFamilia, idPaciente) VALUES (?,?)");
+    if ($sql->execute($datos)) {
+        return true;
+    }
+    return false;
 }
 function Mostrar_Error(array $errors)
 {

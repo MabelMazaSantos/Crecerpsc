@@ -10,7 +10,7 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-$sql = $con->prepare("SELECT DISTINCT terapia_familiar.Id, terapia_familiar.Grupo_Familiar FROM terapia_familiar INNER JOIN paciente ON terapia_familiar.Grupo_Familiar = paciente.Grupo_Familiar WHERE paciente.Id IS NOT NULL");
+$sql = $con->prepare("SELECT f.Id, f.Grupo_Familiar, COUNT(fp.idFamilia) as Miembros FROM terapia_familiar f LEFT JOIN familia_paciente fp ON fp.idFamilia = f.Id GROUP BY f.Id ORDER BY f.Id DESC");
 $sql->execute();
 $resultado = $sql->fetchAll(PDO::FETCH_ASSOC);
 
@@ -38,8 +38,8 @@ include 'Header.php';
                         <tr>
                             <th>Orden</th>
                             <th>Grupo Familiar</th>
-                            <th>Ver Miembros</th>
-                            <th>Eliminar</th>
+                            <th>Miembros</th>
+                            <th>-</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -48,12 +48,19 @@ include 'Header.php';
                                 <td><?php echo $row['Id'] ?></td>
                                 <td><?php echo $row['Grupo_Familiar'] ?></td>
                                 <td class="text-center">
-                                    <a href="Detalle_Familiar.php?id=<?php echo $row['Grupo_Familiar'] ?>&token=<?php echo hash_hmac('sha1', $row['Grupo_Familiar'], KEY_TOKEN) ?>"
-                                        class="btn btn-primary btn-sm">
-                                        <i class="fa-solid fa-people-group"></i>
-                                    </a>
+                                    <?php if ($row['Miembros'] > 0) { ?>
+                                        <?php echo $row['Miembros'] ?> miembros
+                                    <?php } else { ?>
+                                        Sin miembros
+                                    <?php } ?>
                                 </td>
                                 <td class="text-center">
+                                    <?php if ($row['Miembros'] > 0) { ?>
+                                        <a href="Detalle_Familiar.php?id=<?php echo $row['Grupo_Familiar'] ?>&token=<?php echo hash_hmac('sha1', $row['Grupo_Familiar'], KEY_TOKEN) ?>&edit=true"
+                                            class="btn btn-primary btn-sm">
+                                            <i class="fa-solid fa-people-group"></i>
+                                        </a>
+                                    <?php } ?>
                                     <a href="#" class="btn btn-danger btn-sm" data-bs-toggle="modal"
                                         data-bs-target="#confirmDeleteGrupoFamiliar" data-id="<?php echo $row['Id']; ?>">
                                         <i class="fas fa-trash"></i>
