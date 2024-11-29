@@ -31,22 +31,24 @@ if (!empty($_POST)) {
         $grupo_familiar = trim($_POST['GrupoFamiliarText']);
     }
 
-    if (Validar_Nulo([$nombre, $sexo, $edad, $trastorno, $observacion, $grupo_familiar])) {
+    if (Validar_Nulo([$nombre, $sexo, $edad, $trastorno, $observacion])) {
         $errors[] = "Debe completar todos los campos";
     }
 
     if (count($errors) == 0) {
         $id = Registrar_Paciente([$nombre, $edad, $sexo, $trastorno, $observacion], $con);
-        if ($id > 0) {
-            if (!isset($_POST['toggleGrupoFamiliar']) || $_POST['toggleGrupoFamiliar'] != 'on') {
-                $sql = "INSERT INTO terapia_familiar (Grupo_Familiar) VALUES (?)";
-                $stmt = $con->prepare($sql);
-                $stmt->execute([$grupo_familiar]);
-                $grupo_familiar = $con->lastInsertId();
-            }
-            $result = Registrar_Paciente_Familia([$grupo_familiar, $id], $con);
-            if (!$result) {
-                $errors[] = "Error al registrar la familia del paciente";
+        if ($id > 0 ) {
+            if (isset($grupo_familiar) && $grupo_familiar != '') {
+                if (!isset($_POST['toggleGrupoFamiliar']) || $_POST['toggleGrupoFamiliar'] != 'on') {
+                    $sql = "INSERT INTO terapia_familiar (Grupo_Familiar) VALUES (?)";
+                    $stmt = $con->prepare($sql);
+                    $stmt->execute([$grupo_familiar]);
+                    $grupo_familiar = $con->lastInsertId();
+                }
+                $result = Registrar_Paciente_Familia([$grupo_familiar, $id], $con);
+                if (!$result) {
+                    $errors[] = "Error al registrar la familia del paciente";
+                }
             }
             header("Location: Paciente.php");
             exit;
@@ -131,7 +133,7 @@ include 'Header.php';
                     </div>
 
                     <div class="col-md-6" id="grupoFamiliarSelectInput" style="display:none;">
-                        <select name="GrupoFamiliarSelect" id="GrupoFamiliarSelect" class="form-control" required>
+                        <select name="GrupoFamiliarSelect" id="GrupoFamiliarSelect" class="form-control">
                             <option value="" disabled selected> Sin grupo familiar</option>
                             <?php foreach ($grupos_familiares as $grupo) { ?>
                                 <option value="<?php echo htmlspecialchars($grupo['Id']); ?>">
@@ -183,7 +185,7 @@ include 'Header.php';
             document.getElementById('GrupoFamiliarText').value;
 
         if (nombre.trim() === '' || isNaN(edad) || sexo.trim() === '' ||
-            trastorno.trim() === '' || observacion.trim() === '' || grupoFamiliar.trim() === '') {
+            trastorno.trim() === '' || observacion.trim() === '') {
             alert('Debe completar todos los campos correctamente.');
             return false;
         }
