@@ -119,8 +119,6 @@ include 'Header.php';
                                 Masculino</option>
                             <option value="Femenino" <?php echo $psicologo['Sexo'] == 'Femenino' ? 'selected' : ''; ?>>
                                 Femenino</option>
-                            <option value="Otro" <?php echo $psicologo['Sexo'] == 'Otro' ? 'selected' : ''; ?>>Otro
-                            </option>
                         </select>
                     </div>
 

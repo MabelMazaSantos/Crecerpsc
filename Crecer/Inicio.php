@@ -269,7 +269,7 @@ include 'Header.php';
                                             startY += 10;
                                         <?php endforeach; ?>
 
-                                        pdf.save('Estadistica_<?php echo $stadisticSelected ?>.pdf');
+                                        pdf.save(`Estadistica_${stadisticSelected}.pdf`);
                                     }
                                 </script>
                             <?php endif; ?>

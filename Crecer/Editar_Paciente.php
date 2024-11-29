@@ -132,8 +132,6 @@ include 'Header.php';
                                 Masculino</option>
                             <option value="Femenino" <?php echo $paciente['Sexo'] == 'Femenino' ? 'selected' : ''; ?>>
                                 Femenino</option>
-                            <option value="Otro" <?php echo $paciente['Sexo'] == 'Otro' ? 'selected' : ''; ?>>Otro
-                            </option>
                         </select>
                     </div>
 
